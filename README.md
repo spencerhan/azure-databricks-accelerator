@@ -1,5 +1,11 @@
 # Azure Databricks Deployment Accelerator
 
+<p align="left">
+  <img src="https://img.shields.io/badge/Microsoft%20Azure-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white" alt="Microsoft Azure" />
+  <img src="https://img.shields.io/badge/Databricks-FF3621?style=for-the-badge&logo=databricks&logoColor=white" alt="Databricks" />
+  <img src="https://img.shields.io/badge/Terraform-7B42BC?style=for-the-badge&logo=terraform&logoColor=white" alt="Terraform" />
+</p>
+
 > **First attempt — work in progress.** This repository is an early experiment
 > at converting an existing, Azure Databricks Terraform
 > codebase I worked on, into a reusable
@@ -80,6 +86,193 @@ the workflow identical across all three.
 
 The `role-assignments` root assigns Databricks workspace USER / ADMIN
 permissions to AAD groups (referenced by object ID or display name).
+
+***
+
+## Architecture
+
+The diagrams below show the network topology each pattern produces. They focus
+on connectivity — the storage account, Key Vault, access connector, and
+managed-identity wiring exist in every pattern and are only highlighted where
+they materially change between patterns.
+
+### Pattern 1 — Barebone (public)
+
+No VNet injection. The Databricks data plane lives in a Microsoft-managed
+network and reaches the control plane and storage entirely over the public
+internet (Azure backbone). Cheapest and fastest to deploy; not suitable for
+regulated workloads.
+
+```mermaid
+flowchart LR
+    subgraph User["User network / Internet"]
+        U[User browser / API client]
+    end
+
+    subgraph DBXCP["Databricks Control Plane (Microsoft)"]
+        UI[Web UI / REST API]
+        SCC[SCC Relay]
+    end
+
+    subgraph CustomerSub["Customer Azure Subscription"]
+        subgraph CustRG["Resource group"]
+            WS[Databricks workspace]
+            AC[Access connector<br/>managed identity]
+            ST[(ADLS Gen2)]
+            KV[(Key Vault)]
+        end
+        subgraph MRG["Databricks managed RG"]
+            CL[Cluster VMs<br/>public IPs]
+        end
+    end
+
+    U -- HTTPS public --> UI
+    UI -- public --> WS
+    CL -- public --> SCC
+    CL -- public --> ST
+    AC --> ST
+    AC --> KV
+
+    classDef public fill:#fff5f5,stroke:#d00,color:#900
+    class U,UI,SCC,CL public
+```
+
+### Pattern 2 — Backend private connectivity only
+
+Workspace is **VNet-injected**, with the data plane locked into customer
+subnets (Secure Cluster Connectivity, no public IPs). All data-plane to
+control-plane traffic is forced over the `databricks_ui_api` private
+endpoint. Storage and Key Vault are reached over private endpoints.
+The web UI / REST API frontend remains public, so users continue to log in
+over the internet.
+
+```mermaid
+flowchart LR
+    subgraph User["User network / Internet"]
+        U[User browser / API client]
+    end
+
+    subgraph DBXCP["Databricks Control Plane (Microsoft)"]
+        UI[Web UI / REST API]
+        SCC[SCC Relay]
+    end
+
+    subgraph CustomerSub["Customer Azure Subscription"]
+        subgraph VNET["Customer VNet"]
+            HOST[Host subnet<br/>delegated]
+            CONT[Container subnet<br/>delegated]
+            PEP[PE subnet]
+            NSG[NSG<br/>NoAzureDatabricksRules]
+        end
+        subgraph CustRG["Resource group"]
+            WS[Databricks workspace]
+            AC[Access connector]
+            ST[(ADLS Gen2)]
+            KV[(Key Vault)]
+            PE_UI[PE: databricks_ui_api]
+            PE_ST[PE: blob / dfs]
+            PE_KV[PE: vault]
+            DNS[Private DNS zones<br/>databricks / blob / dfs / vaultcore]
+        end
+        subgraph MRG["Databricks managed RG"]
+            CL[Cluster VMs<br/>no public IP]
+        end
+    end
+
+    U -- HTTPS public --> UI
+    UI -- public --> WS
+    CL --> CONT
+    CONT --> NSG
+    HOST --> NSG
+    CL --> PE_UI --> SCC
+    CL --> PE_ST --> ST
+    CL --> PE_KV --> KV
+    AC --> ST
+    AC --> KV
+    PE_UI -.-> DNS
+    PE_ST -.-> DNS
+    PE_KV -.-> DNS
+
+    classDef public fill:#fff5f5,stroke:#d00,color:#900
+    classDef private fill:#f0f7ff,stroke:#0066cc,color:#003366
+    class U,UI public
+    class HOST,CONT,PEP,PE_UI,PE_ST,PE_KV,DNS,CL private
+```
+
+### Pattern 3 — Frontend + backend private connectivity (with NCC)
+
+Workspace public network access is **disabled**. Both the frontend
+(`browser_authentication`) and backend (`databricks_ui_api`) flow through
+private endpoints in the customer VNet, so users must connect from on-prem
+(ExpressRoute / VPN) or a jumpbox inside the VNet. A **Network Connectivity
+Configuration (NCC)** is created and bound to the workspace so serverless
+compute (jobs, SQL warehouses, model serving) reaches storage and Key Vault
+over Databricks-managed private endpoints — no public egress required.
+
+```mermaid
+flowchart LR
+    subgraph User["On-prem / VNet jumpbox<br/>(ExpressRoute / VPN)"]
+        U[User browser / API client]
+    end
+
+    subgraph DBXCP["Databricks Control Plane (Microsoft)"]
+        UI[Web UI / REST API]
+        SCC[SCC Relay]
+        SVL[Serverless compute plane]
+    end
+
+    subgraph CustomerSub["Customer Azure Subscription"]
+        subgraph VNET["Customer VNet"]
+            HOST[Host subnet<br/>delegated]
+            CONT[Container subnet<br/>delegated]
+            PEP[PE subnet]
+            NSG[NSG]
+        end
+        subgraph CustRG["Resource group"]
+            WS[Databricks workspace<br/>public access DISABLED]
+            AC[Access connector]
+            ST[(ADLS Gen2)]
+            KV[(Key Vault)]
+            PE_BR[PE: browser_authentication]
+            PE_UI[PE: databricks_ui_api]
+            PE_ST[PE: blob / dfs]
+            PE_KV[PE: vault]
+            DNS[Private DNS zones]
+        end
+        subgraph MRG["Databricks managed RG"]
+            CL[Cluster VMs<br/>no public IP]
+        end
+    end
+
+    NCC{{NCC<br/>bound to workspace}}
+
+    U --> PE_BR --> UI
+    U --> PE_UI --> SCC
+    CL --> CONT
+    CONT --> NSG
+    HOST --> NSG
+    CL --> PE_UI
+    CL --> PE_ST --> ST
+    CL --> PE_KV --> KV
+    SVL -- managed PE --> NCC
+    NCC -. private .-> ST
+    NCC -. private .-> KV
+    AC --> ST
+    AC --> KV
+    PE_BR -.-> DNS
+    PE_UI -.-> DNS
+    PE_ST -.-> DNS
+    PE_KV -.-> DNS
+
+    classDef private fill:#f0f7ff,stroke:#0066cc,color:#003366
+    classDef ncc fill:#fff8e6,stroke:#b88600,color:#5c4400
+    class U,HOST,CONT,PEP,PE_BR,PE_UI,PE_ST,PE_KV,DNS,CL private
+    class NCC,SVL ncc
+```
+
+> Note: GitHub renders Mermaid diagrams natively in Markdown previews. If you
+> are reading this in an editor that does not support Mermaid, view the file
+> on GitHub or install a Mermaid preview extension.
 
 ***
 
