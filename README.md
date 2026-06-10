@@ -20,7 +20,7 @@ workspace in one of three well-defined network connectivity patterns:
 2. **Backend private connectivity only** — VNet-injected workspace with Secure
    Cluster Connectivity over a private endpoint; the frontend (UI / REST) is
    still reachable over the internet.
-3. **Frontend + backend private connectivity, with NCC for serverless** — fully
+3. **Frontend + backend private connectivity, with NCC enabled for serverless compute** — fully
    private workspace plus a Network Connectivity Configuration so serverless
    compute (jobs, SQL warehouses, model serving) can reach storage and Key
    Vault over Databricks-managed private endpoints.
