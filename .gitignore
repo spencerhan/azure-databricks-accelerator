@@ -1,0 +1,52 @@
+# Local Terraform directories
+**/.terraform/
+**/.terraform-version
+
+# Local backend helper files (not committed; pipeline provides actual config)
+backend.hcl
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+crash.log
+
+# log files
+*.log
+
+# Terraform plan files
+tfplan*
+*.tfplan
+
+# Terraform lock file (OPTIONAL – see notes below)
+#.terraform.lock.hcl
+
+# Sensitive variable files
+# *.tfvars
+# *.tfvars.json
+
+# Override files (rare, but supported by Terraform)
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration files
+.terraformrc
+terraform.rc
+
+# Editor / OS noise
+.vscode/
+.idea/
+.DS_Store
+
+# Python/direnv/editor
+__pycache__/
+.envrc
+.env
+.vscode/
+.idea/
+
+
+#local script
+scaffold.sh
+/envs/*
