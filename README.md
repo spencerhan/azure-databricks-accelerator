@@ -1,6 +1,6 @@
 # Azure Databricks Deployment Accelerator
 
-> **First attempt — work in progress.** This repository is an early experiment
+> **First attempt : work in progress.** This repository is an early experiment
 > at converting an existing, Azure Databricks Terraform
 > codebase I worked on, into a reusable
 > accelerator that anyone can drop into their own Azure environment. **Caution**: Expect
@@ -9,12 +9,12 @@
 A `make`-driven Terraform accelerator that stands up an Azure Databricks
 workspace in one of three well-defined network connectivity patterns:
 
-1. **Barebone (public)** — quickest path to a working workspace, all public
+1. **Barebone (public)** : quickest path to a working workspace, all public
    connectivity.
-2. **Backend private connectivity only** — VNet-injected workspace with Secure
+2. **Backend private connectivity only** : VNet-injected workspace with Secure
    Cluster Connectivity over a private endpoint; the frontend (UI / REST) is
    still reachable over the internet.
-3. **Frontend + backend private connectivity, with NCC for serverless** — fully
+3. **Frontend + backend private connectivity, with NCC for serverless** : fully
    private workspace plus a Network Connectivity Configuration so serverless
    compute (jobs, SQL warehouses, model serving) can reach storage and Key
    Vault over Databricks-managed private endpoints.
@@ -38,11 +38,11 @@ three common Databricks network topologies described by Microsoft's
 Several things were intentionally trimmed:
 
 * No mandatory shared ACR / Log Analytics / DNS zones.
-* No Azure DevOps pipeline yet — only the makefile.
+* No Azure DevOps pipeline yet : only the makefile.
 * Local Terraform state by default (so you can run it in five minutes without
   bootstrapping a backend storage account).
 * Unity Catalog assets, secret scopes, instance pools, and cluster definitions
-  are out of scope for now — the focus is on getting the workspace + network
+  are out of scope for now : the focus is on getting the workspace + network
   topology right.
 
 These are deliberate trade-offs to keep the first iteration small. Expanding
@@ -56,7 +56,7 @@ the `databricks` and `role-assignments` roots back out is on the roadmap.
 | - | ------------------------------- | ---------------------- | ------------------------------------------- | --------------------------------------------------------------------- | --------------------------------- | ---------------------------------------------------------------------- |
 | 1 | Barebone (public)               | `public`               | Public                                      | Public over Azure backbone                                            | No                                | Demos, learning, non-sensitive workloads                               |
 | 2 | Backend private link only       | `backend-private`      | Public                                      | Private endpoint (`databricks_ui_api`) + `NoAzureDatabricksRules` NSG | No                                | Production with VNet injection, users still reach UI from the internet |
-| 3 | Frontend + backend private link | `full-private`         | Private endpoint (`browser_authentication`) | Private endpoint (`databricks_ui_api`)                                | **Yes** — NCC + workspace binding | Regulated workloads, no internet exposure                              |
+| 3 | Frontend + backend private link | `full-private`         | Private endpoint (`browser_authentication`) | Private endpoint (`databricks_ui_api`)                                | **Yes** : NCC + workspace binding | Regulated workloads, no internet exposure                              |
 
 What the `infra` root provisions per pattern:
 
@@ -74,7 +74,7 @@ What the `infra` root provisions per pattern:
 | `privatelink.azuredatabricks.net` DNS zone                  | –        | ✓                 | ✓                                         |
 
 The `databricks` root only materialises an **NCC (Network Connectivity
-Configuration)** and binds it to the workspace — and only when the active
+Configuration)** and binds it to the workspace : and only when the active
 pattern is `full-private`. It is a no-op for the other patterns, which keeps
 the workflow identical across all three.
 
@@ -87,7 +87,7 @@ permissions to AAD groups (referenced by object ID or display name).
 
 ```text
 .
-├── makefile                                  # main entry point — see `make help`
+├── makefile                                  # main entry point : see `make help`
 ├── modules/                                  # reusable building blocks (Terraform modules)
 │   ├── azure-core/
 │   │   └── resource-group/
@@ -110,7 +110,7 @@ permissions to AAD groups (referenced by object ID or display name).
 │           └── ncc/                          # NCC for serverless private connectivity
 └── terraform/
     ├── code/                                 # Terraform roots (one per lifecycle phase)
-    │   ├── infra/                            # parameterised — handles all 3 patterns
+    │   ├── infra/                            # parameterised : handles all 3 patterns
     │   ├── databricks/                       # NCC (only created for full-private)
     │   └── role-assignments/                 # workspace permissions
     └── env/                                  # per-environment, per-pattern inputs
@@ -134,7 +134,7 @@ permissions to AAD groups (referenced by object ID or display name).
 * Azure CLI logged in: `az login`
 * An Azure subscription with quota for a Premium Databricks workspace, an ADLS
   Gen2 storage account, a Key Vault, and (for the private patterns) a VNet
-* A Databricks account ID — only required for `full-private` to create the NCC.
+* A Databricks account ID: only required for `full-private` to create the NCC.
   Find it in the Databricks account console.
 * For the `role-assignments` root: a Databricks account auth context. The
   easiest path is:
@@ -168,9 +168,9 @@ permissions to AAD groups (referenced by object ID or display name).
 3. Deploy in one shot:
 
    ```Shell
-   make deploy-public               # pattern 1 — barebone, public
-   make deploy-backend-private      # pattern 2 — backend private link only
-   make deploy-full-private         # pattern 3 — full private + NCC
+   make deploy-public               # pattern 1 : barebone, public
+   make deploy-backend-private      # pattern 2 : backend private link only
+   make deploy-full-private         # pattern 3 : full private + NCC
    ```
 
    Each `deploy-*` target runs `init` + `apply` for both `infra` and
@@ -258,7 +258,7 @@ standard `backend "azurerm" {}` declaration and pass backend config via
 
 This is the first iteration, so the scope is intentionally narrow:
 
-* No CI/CD pipeline (Azure DevOps / GitHub Actions) yet — the makefile is the
+* No CI/CD pipeline (Azure DevOps / GitHub Actions) yet : the makefile is the
   only entry point.
 * Local state by default. Remote state requires a manual `backend.tf` swap.
 * The `databricks` root only creates an NCC. Unity Catalog metastore
@@ -274,7 +274,7 @@ This is the first iteration, so the scope is intentionally narrow:
 * Customer-managed keys, Azure Firewall egress, and private NAT for serverless
   workloads are not yet covered.
 
-If any of these matter for your scenario, contributions are very welcome — the
+If any of these matter for your scenario, contributions are very welcome : the
 modules under `modules/` already exist for most of them; they just need to be
 wired back into the parameterised roots.
 
