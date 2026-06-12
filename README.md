@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Terraform-7B42BC?style=for-the-badge&logo=terraform&logoColor=white" alt="Terraform" />
 </p>
 
-> **First attempt — work in progress.** This repository is an early experiment
+> **First attempt: work in progress.** This repository is an early experiment
 > at converting an existing, Azure Databricks Terraform
 > codebase I worked on, into a reusable
 > accelerator that anyone can drop into their own Azure environment. **Caution**: Expect
@@ -20,7 +20,7 @@ workspace in one of three well-defined network connectivity patterns:
 2. **Backend private connectivity only** : VNet-injected workspace with Secure
    Cluster Connectivity over a private endpoint; the frontend (UI / REST) is
    still reachable over the internet.
-3. **Frontend + backend private connectivity, with NCC enabled for serverless compute** — fully
+3. **Frontend + backend private connectivity, with NCC enabled for serverless compute**: fully
    private workspace plus a Network Connectivity Configuration so serverless
    compute (jobs, SQL warehouses, model serving) can reach storage and Key
    Vault over Databricks-managed private endpoints.
@@ -92,11 +92,11 @@ permissions to AAD groups (referenced by object ID or display name).
 ## Architecture
 
 The diagrams below show the network topology each pattern produces. They focus
-on connectivity — the storage account, Key Vault, access connector, and
+on connectivity: the storage account, Key Vault, access connector, and
 managed-identity wiring exist in every pattern and are only highlighted where
 they materially change between patterns.
 
-### Pattern 1 — Barebone (public)
+### Pattern 1: Barebone (public)
 
 No VNet injection. The Databricks data plane lives in a Microsoft-managed
 network and reaches the control plane and storage entirely over the public
@@ -137,7 +137,7 @@ flowchart LR
     class U,UI,SCC,CL public
 ```
 
-### Pattern 2 — Backend private connectivity only
+### Pattern 2: Backend private connectivity only
 
 Workspace is **VNet-injected**, with the data plane locked into customer
 subnets (Secure Cluster Connectivity, no public IPs). All data-plane to
@@ -199,7 +199,7 @@ flowchart LR
     class HOST,CONT,PEP,PE_UI,PE_ST,PE_KV,DNS,CL private
 ```
 
-### Pattern 3 — Frontend + backend private connectivity (with NCC)
+### Pattern 3: Frontend + backend private connectivity (with NCC)
 
 Workspace public network access is **disabled**. Both the frontend
 (`browser_authentication`) and backend (`databricks_ui_api`) flow through
@@ -207,7 +207,7 @@ private endpoints in the customer VNet, so users must connect from on-prem
 (ExpressRoute / VPN) or a jumpbox inside the VNet. A **Network Connectivity
 Configuration (NCC)** is created and bound to the workspace so serverless
 compute (jobs, SQL warehouses, model serving) reaches storage and Key Vault
-over Databricks-managed private endpoints — no public egress required.
+over Databricks-managed private endpoints: no public egress required.
 
 ```mermaid
 flowchart LR
